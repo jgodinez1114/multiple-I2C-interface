@@ -1,6 +1,6 @@
 #include"mbed.h"
-#include <stdio.h>
-#include "i2c.h"
+//#include <stdio.h>
+//#include "i2c.h"
 #define decode_bcd(x)	((x >> 4) * 10 + (x & 0x0F))
 #define encode_bcd(x)	((((x/10) & 0x0F) << 4) + (x % 10)) 
 
@@ -230,28 +230,13 @@ void lcd_clear(){
 	
 	
 }
-void lcd_test(){
-	lcd_data('H');
-}
-void displayVal(int val1, int val2 , int val3){
+void displayVal(int val1, int val2){
 	
-	char line[10];
-	//print third digit MS
-	sprintf(line, "%d",val1);
-		EdgeClock(); 
-	} 	
-	//print second digit
-	for (int j = 0; j < 8 ; j++) { 	
-		data = arr[val2][j]; 
-		EdgeClock(); 
-	}
-	//print first digit LS
-	for (int j = 0; j < 8 ; j++) { 	
-		data = arr[val3][j]; 
-		EdgeClock(); 
-	}
+	lcd_data(0b00110000|val1);
+	lcd_data(0b00110000|val2);
+		
 	
-	wait(0.2);// Paused to show 
+	
 }
 
 void parseMyReading(unsigned int temp){
@@ -264,7 +249,7 @@ void parseMyReading(unsigned int temp){
 	dig2 = temp/10;
 	
 	//display Celsius reading
-	displayVal(dig1,dig2,12);
+	displayVal(dig1,dig2);
 	
 	float tempf;
 	
@@ -276,46 +261,95 @@ void parseMyReading(unsigned int temp){
 	wait(1.5);
 	
 	//display  Farenheit reading
-	displayVal(dig3,dig4,15);
+	displayVal(dig3,dig4);
 	
 	wait(1.5);
 }
-void parseMyTime(int sec, int min, int hour, int day, int date, int month, int year){
+void parseMyTime(int& hour,int min, int month,int date,int year){
 	int minuteDig1, minuteDig2, hrDig1, hrDig2, dateDig1, dateDig2, monthDig1, monthDig2, yrDig1, yrDig2;
 	
-	minuteDig1 = min % 10;
-	minuteDig2 = min / 10;
 	
-	hrDig1 = hour % 10;
-	hrDig2 = hour / 10;
+	hrDig2 = hour % 10;
+	hrDig1 = hour / 10;
+	
+	minuteDig2 = min % 10;
+	minuteDig1 = min / 10;
+	
+	monthDig2 = month % 10;
+	monthDig1 = month / 10;
+	
+	dateDig2 = date % 10;
+	dateDig1 = date / 10;
+	
+	yrDig2 = year % 10;
+	yrDig1 = year / 10;
 	
 	
-	displayVal(minuteDig1, minuteDig2, hrDig1);	
+
 	
-	dateDig1 = date % 10;
-	dateDig2 = date / 10;
+	int pm;
+	int t = hour & 0x20;
 	
-	monthDig1 = month % 10;
-	monthDig2 = month / 10;
 	
-	yrDig1 = year % 10;
-	yrDig2 = year / 10;
+	if (t == 0x20){
+		pm = 0;
+		hour = hour - 0x60;
+	}
+	else{
+		pm = 1;
+		hour = hour - 0x40;
+	}
 	
-	wait(3.2);
 	
-	displayVal(dateDig1, dateDig2, 0);
-	wait(1.5);
-	displayVal(monthDig1, monthDig2, 0);
-	wait(1.5);
-	displayVal(yrDig1, yrDig2, 13);
-	wait(3.31);
+
+		
+	displayVal(hrDig1, hrDig2); //display hr
+	lcd_data(':');
+	
+	displayVal(minuteDig1, minuteDig2);	//display minute
+	
+	if(pm == 1){
+		lcd_data('p');
+		lcd_data('m');
+		
+	}
+	else{
+		lcd_data('a');
+		lcd_data('m');
+		
+	}
+	
+	lcd_data(' ');
+	
+	displayVal(dateDig1, dateDig2); //display date
+
+	
+	lcd_data(' ');
+	
+	
+//displayVal(monthDig1, monthDig2); //display month
+//	lcd_data(',');
+//	displayVal(yrDig1, yrDig2); //display year
+
 	
 	
 	
 }
 
 
+void printInt(int number){
+	char str[2]; 
+  sprintf(str, "%d", number);
+	if (number<=9){
+		str[1]='0';
+		lcd_data(str[1]);
+		lcd_data(str[0]);
+	}else{
+		lcd_data(str[0]);
+		lcd_data(str[1]);
+	}
 
+}
 
 
 
@@ -329,55 +363,34 @@ lcd_init();
 //	for (int i=22;i>0;i--){ //nasty hardcode
 //		lcd_data(' ');
 //	}
-		rst = 0; 
-	EdgeClock(); 
-	rst = 1; 
-	EdgeClock(); 
+
 	
 	
 	int sec, min, hour, day, date, month, year;
 	
 	//start time
 	i2c.start();
-	
-	i2c.write(0xD0);
-	
+	i2c.write(0xd0);
 	i2c.write(0x00);
-	
 	i2c.write(0x00);
-	
 	i2c.stop();
 	
-  i2c.start();
-	
-	i2c.write(0xD0);
-	
+	i2c.start();
+	i2c.write(0xd0);
 	i2c.write(0x00);
-	
-	i2c.write(0x00);	//we want 0
-	
-	i2c.write(0x00); //we want 0 minutes
-		
-	i2c.write(0x62); //we want 2 hours
-			
-	i2c.write(0x01); //we want day 1
-				
-	i2c.write(0x12); //we want date 11
-					
-	i2c.write(0x11);	//we want month 11
-						
-	i2c.write(0x19);	//we want year 19
+	i2c.write(0x55); //sec 00
+	i2c.write(0x59); //min 57
+	i2c.write(0x71); //hr 71=11
+	i2c.write(0x06); //day
+	i2c.write(0x28); //date
+	i2c.write(0x2); //month
+	i2c.write(0x20); //year
 	
 	i2c.start();
-	
-	i2c.write(0xD0);
-	
-	i2c.write(0x0E);
-	
+	i2c.write(0xd0);
+	i2c.write(0x0e);
 	i2c.write(0x20);
-	
 	i2c.write(0);
-	
 	i2c.stop();
 	
 	//read temp
@@ -417,39 +430,72 @@ lcd_init();
 	
 	//continuously read from sensors
 	while(1){
-	
-	// read from clock
-	i2c.start();
-	
-	i2c.write(0xD0);
-	
-	i2c.write(0x00);
-	
-	i2c.start();
-	
-	i2c.write(0xD1);	
-	
-	sec   = i2c.read(1);	//ACK
-	min   = i2c.read(1);
-	hour  = i2c.read(1);
-	day   = i2c.read(1);
-	date  = i2c.read(1);
-	month = i2c.read(1);
-	year  = i2c.read(0);	//NACK
-	
-	//convert BCD to decimal 
-	sec   = decode_bcd(sec);
-	min   = decode_bcd(min);
-	hour  = decode_bcd(hour);
-	day   = decode_bcd(day);
-	date  = decode_bcd(date);
-	month = decode_bcd(month);
-	year  = decode_bcd(year);
-	
-	parseMyTime(sec, min, hour, day, date, month, year);
-	
-	
-	i2c.stop();
+			lcd_command(LCD_CLEARDISPLAY);
+			// read from clock
+			i2c.start();
+			
+			i2c.write(0xD0);
+			
+			i2c.write(0x00);
+			
+			i2c.start();
+			
+			i2c.write(0xD1);	
+			
+			sec   = i2c.read(1);	//ACK
+			min   = i2c.read(1);
+			hour  = i2c.read(1);
+			day   = i2c.read(1);
+			date  = i2c.read(1);
+			month = i2c.read(1);
+
+			year  = i2c.read(0);
+			i2c.stop();		//NACK
+					
+			hour=(hour&0x1F);
+			//convert BCD to decimal 
+			min   = decode_bcd(min);
+			hour  = decode_bcd(hour);
+			date  = decode_bcd(date);
+			month = decode_bcd(month);
+			year  = decode_bcd(year);
+			printInt(hour);
+			lcd_data(':');
+			printInt(min);
+			lcd_data(' ');
+			int pm;
+			int t = hour & 0x20;
+			
+			
+			if (t == 0x20){
+				pm = 0;
+				hour = hour - 0x60;
+			}
+			else{
+				pm = 1;
+				hour = hour - 0x40;
+			}
+			if(pm == 1){
+			lcd_data('p');
+			lcd_data('m');
+
+			}
+			else{
+			lcd_data('a');
+			lcd_data('m');
+
+			}
+			lcd_data(' ');
+			printInt(month);
+			lcd_data(' ');
+			printInt(date);
+			lcd_data(',');
+			lcd_data('2');
+			lcd_data('0');
+			printInt(year);
+			lcd_data(' ');
+			
+					
 		
 		//start communication with temp module
 		i2c.start();
@@ -464,8 +510,25 @@ lcd_init();
 		i2c.stop();
 		
 		//analyze reading from temperature sensor
-		parseMyReading(temp);		
-
+		lcd_data('T');
+		lcd_data('e');
+		lcd_data('m');
+		lcd_data('p');
+		lcd_data(':');
+		lcd_data(' ');
+		printInt(temp);
+		lcd_data(' ');		
+		lcd_data('C');
+		lcd_data(' ');
+		lcd_data('(');
+		float tempf;
+		tempf = (temp * (1.8)) + 32;
+		printInt(tempf);
+		lcd_data(' ');
+		lcd_data('F');
+		lcd_data(')');
+			
+wait (3);
 
 }
 	}
